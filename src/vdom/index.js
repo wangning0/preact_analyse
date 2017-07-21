@@ -2,6 +2,7 @@ import { extend } from '../util';
 
 
 /** Check if two nodes are equivalent.
+ * 	鉴定两个node是否是相等的
  *	@param {Element} node
  *	@param {VNode} vnode
  *	@private
@@ -31,6 +32,7 @@ export function isNamedNode(node, nodeName) {
  * Reconstruct Component-style `props` from a VNode.
  * Ensures default/fallback values from `defaultProps`:
  * Own-properties of `defaultProps` not present in `vnode.attributes` are added.
+ * 通过VNode来组成 component-style 形式的props，一个来源是vnode的attrubutes 还有一个是vnode.nodeName.defaultProps
  * @param {VNode} vnode
  * @returns {Object} props
  */
@@ -40,6 +42,7 @@ export function getNodeProps(vnode) {
 
 	let defaultProps = vnode.nodeName.defaultProps;
 	if (defaultProps!==undefined) {
+		// 属性如果名字一样，则已props为主，所以才是defaultProps
 		for (let i in defaultProps) {
 			if (props[i]===undefined) {
 				props[i] = defaultProps[i];

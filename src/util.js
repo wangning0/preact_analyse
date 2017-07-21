@@ -2,6 +2,7 @@
  *	@returns obj
  *	@private
  */
+// 简单的对象的属性的复制
 export function extend(obj, props) {
 	for (let i in props) obj[i] = props[i];
 	return obj;

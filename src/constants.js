@@ -7,7 +7,7 @@ export const FORCE_RENDER = 2; // 强行进行渲染
 export const ASYNC_RENDER = 3; // 异步进行渲染
 
 
-export const ATTR_KEY = '__preactattr_';  // 
+export const ATTR_KEY = '__preactattr_';  // 标识
 
 // DOM properties that should NOT have "px" added when numeric
 export const IS_NON_DIMENSIONAL = /acit|ex(?:s|g|n|p|$)|rph|ows|mnc|ntw|ine[ch]|zoo|^ord/i;

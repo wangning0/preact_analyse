@@ -22,6 +22,7 @@ export function setComponentProps(component, props, opts, context, mountAll) {
 	if ((component.__key = props.key)) delete props.key;
 	// component.base 表示的是有没有挂载过，基准的dom点
 	if (!component.base || mountAll) {
+		// 生命周期内只执行一次
 		if (component.componentWillMount) component.componentWillMount();
 	}
 	else if (component.componentWillReceiveProps) {
@@ -37,9 +38,8 @@ export function setComponentProps(component, props, opts, context, mountAll) {
 	component.props = props;
 
 	component._disable = false;
-
+	//	第一次的时候是不进行render的 只是单纯的设置component的props
 	if (opts!==NO_RENDER) {
-			// 第一次更新 或者是被设置成了SYNC_RENDER则立马渲染组件
 		if (opts===SYNC_RENDER || options.syncComponentUpdates!==false || !component.base) {
 			renderComponent(component, SYNC_RENDER, mountAll);
 		}
@@ -48,7 +48,7 @@ export function setComponentProps(component, props, opts, context, mountAll) {
 		}
 	}
 
-	if (component.__ref) component.__ref(component);
+	if (component.__ref) component.__ref(component); // ref引用
 }
 
 
@@ -61,6 +61,7 @@ export function setComponentProps(component, props, opts, context, mountAll) {
  *	@private
  */
 export function renderComponent(component, opts, mountAll, isChild) {
+	// 判断是否是卸载了的组件
 	if (component._disable) return;
 
 	let props = component.props,
@@ -69,16 +70,17 @@ export function renderComponent(component, opts, mountAll, isChild) {
 		previousProps = component.prevProps || props,
 		previousState = component.prevState || state,
 		previousContext = component.prevContext || context,
-		isUpdate = component.base,
-		nextBase = component.nextBase,
+		isUpdate = component.base, // 初始化的时候都是不存在的
+		nextBase = component.nextBase, // 用处是 看该组件是否是已经存在过的 detail：component-recycler.js->createComponent	
 		initialBase = isUpdate || nextBase,
-		initialChildComponent = component._component,
+		initialChildComponent = component._component, // 初始状态是为空, 非初始化状态则是初始化时的组件
 		skip = false,
 		rendered, inst, cbase;
 
 	// if updating
 	// 更新过的组件
 	if (isUpdate) {
+		// 因为是已经挂载后的组件，会出现进行前后props 和 state 的比较，所以这个时候需要把component的props和state和context变成上一次组件的状态
 		component.props = previousProps;
 		component.state = previousState;
 		component.context = previousContext;
@@ -92,6 +94,7 @@ export function renderComponent(component, opts, mountAll, isChild) {
 		else if (component.componentWillUpdate) {
 			component.componentWillUpdate(props, state, context);
 		}
+		// 回归原状
 		component.props = props;
 		component.state = state;
 		component.context = context;
@@ -101,32 +104,37 @@ export function renderComponent(component, opts, mountAll, isChild) {
 	component._dirty = false; // 最后component都是false
 
 	if (!skip) {
+		// render渲染组件
 		rendered = component.render(props, state, context);
 
 		// context to pass to the child, can be updated via (grand-)parent component
+		// 传递context 和react的方法类似
 		if (component.getChildContext) {
 			context = extend(extend({}, context), component.getChildContext());
 		}
 
 		let childComponent = rendered && rendered.nodeName,
 			toUnmount, base;
-		// 如果子元素是组件
+		// 如果元素是组件
 		if (typeof childComponent==='function') {
 			// 还是一个组件
 			// set up high order component link
 
 			let childProps = getNodeProps(rendered);
 			inst = initialChildComponent;
-
+			
 			if (inst && inst.constructor===childComponent && childProps.key==inst.__key) {
+				// 不是初始化状态
 				setComponentProps(inst, childProps, SYNC_RENDER, context, false);
 			}
 			else {
+				// 初始化状态
 				toUnmount = inst;
-
+				// 创建一个实例化的组件, 在这里赋值 _component
 				component._component = inst = createComponent(childComponent, childProps, context);
 				inst.nextBase = inst.nextBase || nextBase;
 				inst._parentComponent = component;
+				// 设置完了props之后在进行同步的渲染
 				setComponentProps(inst, childProps, NO_RENDER, context, false);
 				renderComponent(inst, SYNC_RENDER, mountAll, true);
 			}
@@ -253,16 +261,18 @@ export function buildComponentFromVNode(dom, vnode, context, mountAll) {
 
 
 /** Remove a component from the DOM and recycle it.
+ * 	从DOM上移除一个组件 并且回收它， 参数是一个要卸载的组件实例
  *	@param {Component} component	The Component instance to unmount
  *	@private
  */
 export function unmountComponent(component) {
+	// 如果在options里面有beforeUnmount钩子函数，则执行
 	if (options.beforeUnmount) options.beforeUnmount(component);
 
 	let base = component.base;
-
+	// component变得不可用
 	component._disable = true;
-
+	// 调用生命周期方法 componentWillUnmount 卸载前
 	if (component.componentWillUnmount) component.componentWillUnmount();
 
 	component.base = null;
@@ -273,6 +283,7 @@ export function unmountComponent(component) {
 		unmountComponent(inner);
 	}
 	else if (base) {
+		// react 规范 去掉ref的应用 而且preact的ref只支持函数类型
 		if (base[ATTR_KEY] && base[ATTR_KEY].ref) base[ATTR_KEY].ref(null);
 
 		component.nextBase = base;
