@@ -18,6 +18,7 @@ export let diffLevel = 0;
 let isSvgMode = false;
 
 /** Global flag indicating if the diff is performing hydration */
+// 占坑
 let hydrating = false;
 
 /** Invoke queued componentDidMount lifecycle methods */
@@ -27,12 +28,14 @@ export function flushMounts() {
 	while ((c=mounts.pop())) {
 		// 如果有hook函数，可以触发该方法
 		if (options.afterMount) options.afterMount(c);
+		//存在componentDidMount则调用该生命周期函数， dom挂载完毕 该方法是在diff内调用
 		if (c.componentDidMount) c.componentDidMount();
 	}
 }
 
 
 /** Apply differences in a given vnode (and it's deep children) to a real DOM Node.
+ * 	将比较后的差异应用到真实的dom节点中，并且会递归子节点
  *	@param {Element} [dom=null]		A DOM node to mutate into the shape of the `vnode`
  *	@param {VNode} vnode			A VNode (with descendants forming a tree) representing the desired DOM structure
  *	@returns {Element} dom			The created/mutated element
@@ -84,10 +87,14 @@ function idiff(dom, vnode, context, mountAll, componentRoot) {
 
 	// 如果vnode是string 或者是number则创建或者更新 Text nodes
 	// 但是什么时候vnode会是一个string/ number 呢??
+	// 通过vnode的来源可以得出，最大的可能是在options.vnode 这个钩子里面可以返回了一个string或者number的vnode 
+	// 占位 是否还会有其他的vnode来源呢？
+	// 一个优化手段
 	// Fast case: Strings & Numbers create/update Text nodes.
 	if (typeof vnode==='string' || typeof vnode==='number') {
 
 		// update if it's already a Text node:
+		// 如果他是一个存在的Text node那么就更新它 splitText的作用就是用来鉴定是不是textnode
 		if (dom && dom.splitText!==undefined && dom.parentNode && (!dom._component || componentRoot)) {
 			/* istanbul ignore if */ /* Browser quirk that can't be covered: https://github.com/developit/preact/commit/fd4f21f5c45dfd75151bd27b4c217d8003aa5eb9 */
 			if (dom.nodeValue!=vnode) {
@@ -96,6 +103,7 @@ function idiff(dom, vnode, context, mountAll, componentRoot) {
 		}
 		else {
 			// it wasn't a Text node: replace it with one and recycle the old Element
+			// 如果不是一个Text node， 用一个代替它，并且回收老的element
 			out = document.createTextNode(vnode);
 			if (dom) {
 				if (dom.parentNode) dom.parentNode.replaceChild(out, dom);
@@ -103,6 +111,7 @@ function idiff(dom, vnode, context, mountAll, componentRoot) {
 			}
 		}
 
+		// __preactattr_
 		out[ATTR_KEY] = true;
 
 		return out;
@@ -266,20 +275,23 @@ function innerDiffNode(dom, vchildren, context, mountAll, isHydrating) {
 
 
 /** Recursively recycle (or just unmount) a node and its descendants.
- *	@param {Node} node						DOM node to start unmount/removal from
- *	@param {Boolean} [unmountOnly=false]	If `true`, only triggers unmount lifecycle, skips removal
+ * 	递归回收或者只是卸载一个节点以及它的后代
+ *	@param {Node} node						DOM node to start unmount/removal from   DOM节点开始删除或卸载
+ *	@param {Boolean} [unmountOnly=false]	If `true`, only triggers unmount lifecycle, skips removal 为真的话，只会触发卸载的生命周期，跳过removal
  */
 export function recollectNodeTree(node, unmountOnly) {
 	let component = node._component;
 	if (component) {
 		// if node is owned by a Component, unmount that component (ends up recursing back here)
+		// 如果该node是在组件持有的，卸载该组件，在此处递归结束
 		unmountComponent(component);
 	}
 	else {
 		// If the node's VNode had a ref function, invoke it with null here.
 		// (this is part of the React spec, and smart for unsetting references)
+		// React的规范的一部分，利于去取消引用 references
 		if (node[ATTR_KEY]!=null && node[ATTR_KEY].ref) node[ATTR_KEY].ref(null);
-
+		// 
 		if (unmountOnly===false || node[ATTR_KEY]==null) {
 			removeNode(node);
 		}
@@ -288,11 +300,16 @@ export function recollectNodeTree(node, unmountOnly) {
 	}
 }
 
-
+/**
+ * 优化的点：
+ * 	使用lastChild可以比firstChild减少重绘的次数，提升性能
+ *  而且比调用childNodes性能也更好
+ */
 /** Recollect/unmount all children.
  *	- we use .lastChild here because it causes less reflow than .firstChild
  *	- it's also cheaper than accessing the .childNodes Live NodeList
  */
+// 递归移除节点
 export function removeChildren(node) {
 	node = node.lastChild;
 	while (node) {
@@ -304,7 +321,8 @@ export function removeChildren(node) {
 
 
 /** Apply differences in attributes from a VNode to the given DOM Element.
- *	@param {Element} dom		Element with attributes to diff `attrs` against
+ *  将属性的区别从vnode应用到给定的DOM节点
+ *	@param {Element} dom		Element with attributes to diff `attrs` against  和attrs去比较的带有attributes的element
  *	@param {Object} attrs		The desired end-state key-value attribute pairs
  *	@param {Object} old			Current/previous attributes (from previous VNode or element's prop cache)
  */
@@ -312,6 +330,7 @@ function diffAttributes(dom, attrs, old) {
 	let name;
 
 	// remove attributes no longer present on the vnode by setting them to undefined
+	// 设置不在vnode中存在的属性为空来删除它们
 	for (name in old) {
 		if (!(attrs && attrs[name]!=null) && old[name]!=null) {
 			setAccessor(dom, name, old[name], old[name] = undefined, isSvgMode);
@@ -319,6 +338,7 @@ function diffAttributes(dom, attrs, old) {
 	}
 
 	// add new & update changed attributes
+	// 增加新的或者更新改变的属性
 	for (name in attrs) {
 		if (name!=='children' && name!=='innerHTML' && (!(name in old) || attrs[name]!==(name==='value' || name==='checked' ? dom[name] : old[name]))) {
 			setAccessor(dom, name, old[name], old[name] = attrs[name], isSvgMode);

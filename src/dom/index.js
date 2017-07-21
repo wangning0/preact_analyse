@@ -16,6 +16,7 @@ export function createNode(nodeName, isSvg) {
 
 
 /** Remove a child node from its parent if attached.
+ *  如果存在的话，从父节点那移除子节点
  *	@param {Element} node		The node to remove
  */
 export function removeNode(node) {
@@ -25,8 +26,10 @@ export function removeNode(node) {
 
 
 /** Set a named attribute on the given Node, with special behavior for some names and event handlers.
+ *  设置属性到给定的vnode， 对一些特殊的属性和事件处理做特殊的处理
  *	If `value` is `null`, the attribute/handler will be removed.
- *	@param {Element} node	An element to mutate
+ 	如果value是空的话，移除属性或者处理器
+ *	@param {Element} node	An element to mutate 变化的节点
  *	@param {string} name	The name/key to set, such as an event or attribute name
  *	@param {any} old	The last value that was set for this name/node pair
  *	@param {any} value	An attribute value, such as a function to be used as an event handler
@@ -41,10 +44,12 @@ export function setAccessor(node, name, old, value, isSvg) {
 		// ignore
 	}
 	else if (name==='ref') {
+		// preact的ref只支持函数，所以是这种写法
 		if (old) old(null);
 		if (value) value(node);
 	}
 	else if (name==='class' && !isSvg) {
+		// 兼容class 和 className 两种写法
 		node.className = value || '';
 	}
 	else if (name==='style') {
@@ -60,6 +65,7 @@ export function setAccessor(node, name, old, value, isSvg) {
 			}
 		}
 	}
+	 // 
 	else if (name==='dangerouslySetInnerHTML') {
 		if (value) node.innerHTML = value.__html || '';
 	}
@@ -69,13 +75,14 @@ export function setAccessor(node, name, old, value, isSvg) {
 		let useCapture = name !== (name=name.replace(/Capture$/, ''));
 		name = name.toLowerCase().substring(2);
 		if (value) {
-			// 使用原生的事件进行代理
+			// 使用原生的事件进行代理，并且根据传过来的时候判断是否事件捕获
 			if (!old) node.addEventListener(name, eventProxy, useCapture);
 		}
 		else {
 			// 如果有key但是没有value那么就会移除事件监听
 			node.removeEventListener(name, eventProxy, useCapture);
 		}
+		// 兼容性处理
 		(node._listeners || (node._listeners = {}))[name] = value;
 	}
 	else if (name!=='list' && name!=='type' && !isSvg && name in node) {
@@ -97,6 +104,7 @@ export function setAccessor(node, name, old, value, isSvg) {
 
 
 /** Attempt to set a DOM property to the given value.
+ * 	设置property的值
  *	IE & FF throw for certain property-value combinations.
  */
 function setProperty(node, name, value) {
