@@ -16,6 +16,7 @@ export function rerender() {
 	let p, list = items;
 	items = [];
 	while ( (p = list.pop()) ) {
+		// 进行渲染
 		if (p._dirty) renderComponent(p);
 	}
 }

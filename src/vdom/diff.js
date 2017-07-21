@@ -14,15 +14,18 @@ export const mounts = [];
 export let diffLevel = 0;
 
 /** Global flag indicating if the diff is currently within an SVG */
+// 全局flag用来说明是否diff是在一个svg里面
 let isSvgMode = false;
 
 /** Global flag indicating if the diff is performing hydration */
 let hydrating = false;
 
 /** Invoke queued componentDidMount lifecycle methods */
+// 调用入队的componentDidMount生命周期方法
 export function flushMounts() {
 	let c;
 	while ((c=mounts.pop())) {
+		// 如果有hook函数，可以触发该方法
 		if (options.afterMount) options.afterMount(c);
 		if (c.componentDidMount) c.componentDidMount();
 	}
@@ -35,6 +38,7 @@ export function flushMounts() {
  *	@returns {Element} dom			The created/mutated element
  *	@private
  */
+// diff做了些操作记录去跟踪我们干什么
 export function diff(dom, vnode, context, mountAll, parent, componentRoot) {
 	// diffLevel having been 0 here indicates initial entry into the diff (not a subdiff)
 	// diffLevel被设置为0表示的是初始化进入diff
@@ -45,12 +49,14 @@ export function diff(dom, vnode, context, mountAll, parent, componentRoot) {
 
 		// hydration is indicated by the existing element to be diffed not having a prop cache
 		// hydration是根据存在的要被diff的元素没有一个prop缓存 
+		// 这一块还需要做一些记录
 		hydrating = dom!=null && !(ATTR_KEY in dom);
 	}
-
+	// 调用idiff来实际执行实际的diff
 	let ret = idiff(dom, vnode, context, mountAll, componentRoot);
 
 	// append the element if its a new parent
+	// 将idiff返回的node结果放入到parent中, 并且是新的parent
 	if (parent && ret.parentNode!==parent) parent.appendChild(ret);
 
 	// diffLevel being reduced to 0 means we're exiting the diff
@@ -58,6 +64,7 @@ export function diff(dom, vnode, context, mountAll, parent, componentRoot) {
 	if (!--diffLevel) {
 		hydrating = false;
 		// invoke queued componentDidMount lifecycle methods
+		// componentRoot 的作用还不明确，后续跟进
 		if (!componentRoot) flushMounts();
 	}
 
@@ -75,7 +82,8 @@ function idiff(dom, vnode, context, mountAll, componentRoot) {
 	// 空值渲染出一个空的Text 节点
 	if (vnode==null || typeof vnode==='boolean') vnode = '';
 
-
+	// 如果vnode是string 或者是number则创建或者更新 Text nodes
+	// 但是什么时候vnode会是一个string/ number 呢??
 	// Fast case: Strings & Numbers create/update Text nodes.
 	if (typeof vnode==='string' || typeof vnode==='number') {
 

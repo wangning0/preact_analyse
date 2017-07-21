@@ -1,3 +1,5 @@
+// preact库的入口文件
+
 import { h, h as createElement } from './h';
 import { cloneElement } from './clone-element';
 import { Component } from './component';

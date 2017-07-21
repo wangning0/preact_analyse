@@ -64,12 +64,16 @@ export function setAccessor(node, name, old, value, isSvg) {
 		if (value) node.innerHTML = value.__html || '';
 	}
 	else if (name[0]=='o' && name[1]=='n') {
+		// 对于事件的处理 onClick onChange etc事件
+		// 是否使用事件捕获
 		let useCapture = name !== (name=name.replace(/Capture$/, ''));
 		name = name.toLowerCase().substring(2);
 		if (value) {
+			// 使用原生的事件进行代理
 			if (!old) node.addEventListener(name, eventProxy, useCapture);
 		}
 		else {
+			// 如果有key但是没有value那么就会移除事件监听
 			node.removeEventListener(name, eventProxy, useCapture);
 		}
 		(node._listeners || (node._listeners = {}))[name] = value;
@@ -103,6 +107,7 @@ function setProperty(node, name, value) {
 
 
 /** Proxy an event to hooked event handlers
+ * 	// 当你触发一些事件的时候，会代理到这里, 相当于会有两次事件的触发，第一次就是浏览器dom事件 第二次
  *	@private
  */
 function eventProxy(e) {

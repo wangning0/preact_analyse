@@ -13,20 +13,21 @@ import { removeNode } from '../dom';
  *	@param {boolean} [opts.renderSync=false]	If `true` and {@link options.syncComponentUpdates} is `true`, triggers synchronous rendering.
  *	@param {boolean} [opts.render=true]			If `false`, no render will be triggered.
  */
+// setComponentProps可以做一些记录在设置新的props时同时保存老的props
 export function setComponentProps(component, props, opts, context, mountAll) {
 	if (component._disable) return;
 	component._disable = true;
 
 	if ((component.__ref = props.ref)) delete props.ref;
 	if ((component.__key = props.key)) delete props.key;
-	// component.base 是什么意思？ 猜测应该是 有没有被挂在载过
+	// component.base 表示的是有没有挂载过，基准的dom点
 	if (!component.base || mountAll) {
 		if (component.componentWillMount) component.componentWillMount();
 	}
 	else if (component.componentWillReceiveProps) {
 		component.componentWillReceiveProps(props, context);
 	}
-	// 上下文发生变化后，将重新定义上下文
+	// 上下文发生变化后，将重新定义上下文，并且原来的上下文为prevContext
 	if (context && context!==component.context) {
 		if (!component.prevContext) component.prevContext = component.context;
 		component.context = context;
@@ -38,6 +39,7 @@ export function setComponentProps(component, props, opts, context, mountAll) {
 	component._disable = false;
 
 	if (opts!==NO_RENDER) {
+			// 第一次更新 或者是被设置成了SYNC_RENDER则立马渲染组件
 		if (opts===SYNC_RENDER || options.syncComponentUpdates!==false || !component.base) {
 			renderComponent(component, SYNC_RENDER, mountAll);
 		}
@@ -75,15 +77,18 @@ export function renderComponent(component, opts, mountAll, isChild) {
 		rendered, inst, cbase;
 
 	// if updating
+	// 更新过的组件
 	if (isUpdate) {
 		component.props = previousProps;
 		component.state = previousState;
 		component.context = previousContext;
+		// 判断是否需要update 性能优化点 如果是的话则跳过
 		if (opts!==FORCE_RENDER
 			&& component.shouldComponentUpdate
 			&& component.shouldComponentUpdate(props, state, context) === false) {
 			skip = true;
 		}
+		// componentWillUpdate生命周期
 		else if (component.componentWillUpdate) {
 			component.componentWillUpdate(props, state, context);
 		}
@@ -93,7 +98,7 @@ export function renderComponent(component, opts, mountAll, isChild) {
 	}
 
 	component.prevProps = component.prevState = component.prevContext = component.nextBase = null;
-	component._dirty = false;
+	component._dirty = false; // 最后component都是false
 
 	if (!skip) {
 		rendered = component.render(props, state, context);
@@ -105,7 +110,7 @@ export function renderComponent(component, opts, mountAll, isChild) {
 
 		let childComponent = rendered && rendered.nodeName,
 			toUnmount, base;
-
+		// 如果子元素是组件
 		if (typeof childComponent==='function') {
 			// 还是一个组件
 			// set up high order component link
@@ -203,6 +208,7 @@ export function renderComponent(component, opts, mountAll, isChild) {
  *	@returns {Element} dom	The created/mutated element 
  *	@private
  */
+// 主要做的事情是创造或者发现一个适合的component 实例，然后他要设置vnode上的attributes到组件实例上的props
 export function buildComponentFromVNode(dom, vnode, context, mountAll) {
 	let c = dom && dom._component,
 		originalComponent = c,

@@ -16,6 +16,10 @@ import { diff } from './vdom/diff';
  *	render(<Thing name="one" />, document.querySelector('#foo'));
  */
 // 分别表示的是vnode节点和挂载的节点所在位置
+/**
+ * vnode 表示的是h函数返回的vnode
+ * parent 表示的是vnode渲染后的节点的父节点是哪个， merge表示的是需要更新的节点
+ */
 export function render(vnode, parent, merge) {
 	// dom vnode ,context, mountAll, parent, componentRoot
 	return diff(merge, vnode, {}, false, parent, false);
