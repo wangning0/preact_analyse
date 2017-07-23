@@ -13,6 +13,7 @@ const EMPTY_CHILDREN = [];
  *	@see http://jasonformat.com/wtf-is-jsx
  *	@public
  */
+// 关于jsx被babel转换后的形式，可以参考babel官网的在线转换工具https://babeljs.io/repl/#?babili=false&evaluate=true&lineWrap=false&presets=es2015%2Creact%2Cstage-2&targets=&browsers=&builtIns=false&debug=false&code_lz=Q
 export function h(nodeName, attributes) {
 	let children=EMPTY_CHILDREN, lastSimple, child, simple, i;
 	// 因为可能存在有很多个子dom节点的情况，就会超过三个参数

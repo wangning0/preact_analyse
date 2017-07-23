@@ -70,10 +70,10 @@ export function renderComponent(component, opts, mountAll, isChild) {
 		previousProps = component.prevProps || props,
 		previousState = component.prevState || state,
 		previousContext = component.prevContext || context,
-		isUpdate = component.base, // 初始化的时候都是不存在的
+		isUpdate = component.base, // 初始化的时候都是不存在的 非初始状态表示的是已经挂载了
 		nextBase = component.nextBase, // 用处是 看该组件是否是已经存在过的 detail：component-recycler.js->createComponent	
 		initialBase = isUpdate || nextBase,
-		initialChildComponent = component._component, // 初始状态是为空, 非初始化状态则是初始化时的组件
+		initialChildComponent = component._component, // 初始状态是为空, 非初始化状态则是子组件
 		skip = false,
 		rendered, inst, cbase;
 
@@ -113,7 +113,7 @@ export function renderComponent(component, opts, mountAll, isChild) {
 			context = extend(extend({}, context), component.getChildContext());
 		}
 
-		let childComponent = rendered && rendered.nodeName,
+		let childComponent = rendered && rendered.nodeName, // 子组件
 			toUnmount, base;
 		// 如果元素是组件
 		if (typeof childComponent==='function') {
@@ -124,13 +124,13 @@ export function renderComponent(component, opts, mountAll, isChild) {
 			inst = initialChildComponent;
 			
 			if (inst && inst.constructor===childComponent && childProps.key==inst.__key) {
-				// 不是初始化状态
+				// 还是原来的子组件 component
 				setComponentProps(inst, childProps, SYNC_RENDER, context, false);
 			}
 			else {
-				// 初始化状态
+				// 如果不是原来的组件了，那就要把它卸载掉了
 				toUnmount = inst;
-				// 创建一个实例化的组件, 在这里赋值 _component
+				// 创建一个新的实例化的组件, 在这里赋值 _component
 				component._component = inst = createComponent(childComponent, childProps, context);
 				inst.nextBase = inst.nextBase || nextBase;
 				inst._parentComponent = component;
@@ -146,6 +146,7 @@ export function renderComponent(component, opts, mountAll, isChild) {
 			cbase = initialBase;
 
 			// destroy high order component link
+			// 原来是组件，现在不是组件了，我要卸载你了
 			toUnmount = initialChildComponent;
 			if (toUnmount) {
 				cbase = component._component = null;
@@ -186,6 +187,7 @@ export function renderComponent(component, opts, mountAll, isChild) {
 	}
 
 	if (!isUpdate || mountAll) {
+		// 进入队列等待执行 componentDidMount
 		mounts.unshift(component);
 	}
 	else if (!skip) {
@@ -218,12 +220,15 @@ export function renderComponent(component, opts, mountAll, isChild) {
  */
 // 主要做的事情是创造或者发现一个适合的component 实例，然后他要设置vnode上的attributes到组件实例上的props
 export function buildComponentFromVNode(dom, vnode, context, mountAll) {
+	// 初步想法 这个应该是dom里的component
 	let c = dom && dom._component,
 		originalComponent = c,
 		oldDom = dom,
+		// 是不是直属者
 		isDirectOwner = c && dom._componentConstructor===vnode.nodeName,
 		isOwner = isDirectOwner,
 		props = getNodeProps(vnode);
+		// 一层层的往上找，看是否是子孙元素
 	while (c && !isOwner && (c=c._parentComponent)) {
 		isOwner = c.constructor===vnode.nodeName;
 	}

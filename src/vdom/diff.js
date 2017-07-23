@@ -87,14 +87,28 @@ function idiff(dom, vnode, context, mountAll, componentRoot) {
 
 	// 如果vnode是string 或者是number则创建或者更新 Text nodes
 	// 但是什么时候vnode会是一个string/ number 呢??
-	// 通过vnode的来源可以得出，最大的可能是在options.vnode 这个钩子里面可以返回了一个string或者number的vnode 
-	// 占位 是否还会有其他的vnode来源呢？
+	// 主要是因为可能会存在这样的返回的vnode
+	/*
+		{
+			nodeName: 'div',
+			attributes: {id: 'foo'},
+			children:[
+				"hello",
+				{
+					nodeName: 'br'
+				}
+			]
+		}
+		在进行children的遍历的时候就会有vnode是以一个string / number 这样的形式出现，所以是一个优化手段
+	*/
 	// 一个优化手段
 	// Fast case: Strings & Numbers create/update Text nodes.
 	if (typeof vnode==='string' || typeof vnode==='number') {
 
 		// update if it's already a Text node:
 		// 如果他是一个存在的Text node那么就更新它 splitText的作用就是用来鉴定是不是textnode
+		// 为什么会在这里会使用splitText来鉴定是不是textnode呢？是因为性能原因，https://esbench.com/bench/58aba6b199634800a03478d9
+		// 可以通过这个来看 性能的比较
 		if (dom && dom.splitText!==undefined && dom.parentNode && (!dom._component || componentRoot)) {
 			/* istanbul ignore if */ /* Browser quirk that can't be covered: https://github.com/developit/preact/commit/fd4f21f5c45dfd75151bd27b4c217d8003aa5eb9 */
 			if (dom.nodeValue!=vnode) {
@@ -107,6 +121,7 @@ function idiff(dom, vnode, context, mountAll, componentRoot) {
 			out = document.createTextNode(vnode);
 			if (dom) {
 				if (dom.parentNode) dom.parentNode.replaceChild(out, dom);
+				// 递归回收节点树 执行生命周期
 				recollectNodeTree(dom, true);
 			}
 		}
@@ -160,6 +175,7 @@ function idiff(dom, vnode, context, mountAll, componentRoot) {
 
 	// Optimization: fast-path for elements containing a single TextNode:
 	if (!hydrating && vchildren && vchildren.length===1 && typeof vchildren[0]==='string' && fc!=null && fc.splitText!==undefined && fc.nextSibling==null) {
+		// 针对textNode进行了优化
 		if (fc.nodeValue!=vchildren[0]) {
 			fc.nodeValue = vchildren[0];
 		}
@@ -171,6 +187,7 @@ function idiff(dom, vnode, context, mountAll, componentRoot) {
 
 
 	// Apply attributes/props from VNode to the DOM Element:
+	// 对attributes 进行diff
 	diffAttributes(out, vnode.attributes, props);
 
 
@@ -182,8 +199,9 @@ function idiff(dom, vnode, context, mountAll, componentRoot) {
 
 
 /** Apply child and attribute changes between a VNode and a DOM Node to the DOM.
- *	@param {Element} dom			Element whose children should be compared & mutated
- *	@param {Array} vchildren		Array of VNodes to compare to `dom.childNodes`
+ * 	将vnode和dom节点的子节点和属性的变化 反馈到真实的dom上
+ *	@param {Element} dom			Element whose children should be compared & mutated 需要比较的dom
+ *	@param {Array} vchildren		Array of VNodes to compare to `dom.childNodes` 和dom.childNodes比较的VNodes
  *	@param {Object} context			Implicitly descendant context object (from most recent `getChildContext()`)
  *	@param {Boolean} mountAll
  *	@param {Boolean} isHydrating	If `true`, consumes externally created elements similar to hydration
@@ -194,21 +212,24 @@ function innerDiffNode(dom, vchildren, context, mountAll, isHydrating) {
 		keyed = {},
 		keyedLen = 0,
 		min = 0,
-		len = originalChildren.length,
+		len = originalChildren.length, // dom的子节点数
 		childrenLen = 0,
 		vlen = vchildren ? vchildren.length : 0,
 		j, c, f, vchild, child;
 
 	// Build up a map of keyed children and an Array of unkeyed children:
+	// 构造没有key值和有key值的map
 	if (len!==0) {
 		for (let i=0; i<len; i++) {
 			let child = originalChildren[i],
 				props = child[ATTR_KEY],
 				key = vlen && props ? child._component ? child._component.__key : props.key : null;
+				// 有key的情况
 			if (key!=null) {
 				keyedLen++;
 				keyed[key] = child;
 			}
+			// 没有key的情况
 			else if (props || (child.splitText!==undefined ? (isHydrating ? child.nodeValue.trim() : true) : isHydrating)) {
 				children[childrenLen++] = child;
 			}
@@ -230,6 +251,7 @@ function innerDiffNode(dom, vchildren, context, mountAll, isHydrating) {
 				}
 			}
 			// attempt to pluck a node of the same type from the existing children
+			// 对于没有key的情况
 			else if (!child && min<childrenLen) {
 				for (j=min; j<childrenLen; j++) {
 					if (children[j]!==undefined && isSameNodeType(c = children[j], vchild, isHydrating)) {
@@ -243,8 +265,9 @@ function innerDiffNode(dom, vchildren, context, mountAll, isHydrating) {
 			}
 
 			// morph the matched/found/created DOM child to match vchild (deep)
+			// diff产生child
 			child = idiff(child, vchild, context, mountAll);
-
+			// 对dom的操作都在这里
 			f = originalChildren[i];
 			if (child && child!==dom && child!==f) {
 				if (f==null) {

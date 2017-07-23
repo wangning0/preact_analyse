@@ -1,6 +1,6 @@
 import { extend } from './util';
 import { h } from './h';
-
+// 本质上就是h函数
 export function cloneElement(vnode, props) {
 	return h(
 		vnode.nodeName,
